@@ -146,7 +146,7 @@ bool ProbabilisticFusion::Fuse(const FusionOptions& options,
   double fusion_time = sensor_frame->timestamp;
   std::vector<SensorFramePtr> frames;
   sensor_data_manager->GetLatestFrames(fusion_time, &frames);
-  AINFO << "Get " << frames.size() << " related frames for fusion";
+  AINFO << "Get " << frames.size() << " related frames for fusion"; //frames come from different sensors
 
   // 3. perform fusion on related frames
   for (const auto& frame : frames) {

@@ -64,7 +64,10 @@ bool HMTrackersObjectsAssociation::Associate(
   double measurement_timestamp = sensor_objects[0]->GetTimestamp();
   track_object_distance_.ResetProjectionCache(measurement_sensor_id,
                                               measurement_timestamp);
+  // if the frame comes from front radar, do nothing
   bool do_nothing = (sensor_objects[0]->GetSensorId() == "radar_front");
+  // assign the sensor objects to fusion tracks whose relation are already known
+  // in this step, we don't assign the narrow camera object with the track which only have narrow camera object
   IdAssign(fusion_tracks, sensor_objects, &association_result->assignments,
            &association_result->unassigned_tracks,
            &association_result->unassigned_measurements, do_nothing, false);
@@ -83,13 +86,13 @@ bool HMTrackersObjectsAssociation::Associate(
   int num_measurement = static_cast<int>(sensor_objects.size());
   association_result->track2measurements_dist.assign(num_track, 0);
   association_result->measurement2track_dist.assign(num_measurement, 0);
-  std::vector<int> track_ind_g2l;
+  std::vector<int> track_ind_g2l; // track index global (id stores in unassigned_tracks) to local (index of unassigned_tracks)
   track_ind_g2l.resize(num_track, -1);
   for (size_t i = 0; i < association_result->unassigned_tracks.size(); i++) {
     track_ind_g2l[association_result->unassigned_tracks[i]] =
         static_cast<int>(i);
   }
-  std::vector<int> measurement_ind_g2l;
+  std::vector<int> measurement_ind_g2l; // measurement index global to local
   measurement_ind_g2l.resize(num_measurement, -1);
   std::vector<size_t> measurement_ind_l2g =
       association_result->unassigned_measurements;
@@ -98,19 +101,21 @@ bool HMTrackersObjectsAssociation::Associate(
     measurement_ind_g2l[association_result->unassigned_measurements[i]] =
         static_cast<int>(i);
   }
-  std::vector<size_t> track_ind_l2g = association_result->unassigned_tracks;
+  std::vector<size_t> track_ind_l2g = association_result->unassigned_tracks; // track index local to global
 
   if (association_result->unassigned_tracks.empty() ||
       association_result->unassigned_measurements.empty()) {
     return true;
   }
-
+  // assign rest of unassigned sensor objects and fusion tracks by using association_mat and minimizing assignment cost
+  // the association_result->assignments, unassigned_tracks, unassigned_measurements are updated
   bool state = MinimizeAssignment(
       association_mat, track_ind_l2g, measurement_ind_l2g,
       &association_result->assignments, &association_result->unassigned_tracks,
       &association_result->unassigned_measurements);
 
   // start do post assign
+  // finally, assign the narrow camera object with the track which only have narrow camera object
   std::vector<TrackMeasurmentPair> post_assignments;
   PostIdAssign(fusion_tracks, sensor_objects,
                association_result->unassigned_tracks,
@@ -119,11 +124,12 @@ bool HMTrackersObjectsAssociation::Associate(
                                          post_assignments.begin(),
                                          post_assignments.end());
 
+  // update association_result->unassigned_tracks and association_result->unassigned_measurements
   GenerateUnassignedData(fusion_tracks.size(), sensor_objects.size(),
                          association_result->assignments,
                          &association_result->unassigned_tracks,
                          &association_result->unassigned_measurements);
-
+  // evaluate the similarity of fused object
   ComputeDistance(fusion_tracks, sensor_objects,
                   association_result->unassigned_tracks, track_ind_g2l,
                   measurement_ind_g2l, measurement_ind_l2g, association_mat,
@@ -147,7 +153,7 @@ void HMTrackersObjectsAssociation::PostIdAssign(
     std::vector<TrackMeasurmentPair>* post_assignments) {
   std::vector<size_t> valid_unassigned_tracks;
   valid_unassigned_tracks.reserve(unassigned_fusion_tracks.size());
-  // only camera track
+  // only camera track, this PostIdAssign is only worked for camera' narrow object
   auto is_valid_track = [](const TrackPtr& fusion_track) {
     SensorObjectConstPtr camera_obj = fusion_track->GetLatestCameraObject();
     return camera_obj != nullptr &&

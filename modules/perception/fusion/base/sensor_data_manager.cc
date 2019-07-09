@@ -108,6 +108,7 @@ void SensorDataManager::GetLatestFrames(
     return;
   }
 
+  // adjust the frames into time sequence
   for (size_t i = 0; i < frames->size() - 1; ++i) {
     for (size_t j = i + 1; j < frames->size(); ++j) {
       if ((*frames)[j]->GetTimestamp() < (*frames)[i]->GetTimestamp()) {

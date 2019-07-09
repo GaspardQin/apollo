@@ -763,7 +763,7 @@ bool TrackObjectDistance::ComputePolygonCenter(
     const auto& point = polygon.at(idx);
     double distance =
         sqrt(pow(point.x - ref_pos(0), 2) + pow(point.y - ref_pos(1), 2));
-    distance2idx.insert(std::make_pair(distance, idx));
+    distance2idx.insert(std::make_pair(distance, idx)); // sorted automatically
   }
   int size = static_cast<int>(distance2idx.size());
   int nu = std::max(range, size / range + 1);
